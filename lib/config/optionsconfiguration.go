@@ -19,16 +19,16 @@ type OptionsConfiguration struct {
 	RawListenAddresses      []string `xml:"listenAddress" json:"listenAddresses" default:"default"`
 	RawGlobalAnnServers     []string `xml:"globalAnnounceServer" json:"globalAnnounceServers" default:"default"`
 	GlobalAnnEnabled        bool     `xml:"globalAnnounceEnabled" json:"globalAnnounceEnabled" default:"true"`
-	LocalAnnEnabled         bool     `xml:"localAnnounceEnabled" json:"localAnnounceEnabled" default:"true"`
+	LocalAnnEnabled         bool     `xml:"localAnnounceEnabled" json:"localAnnounceEnabled" default:"false"`
 	LocalAnnPort            int      `xml:"localAnnouncePort" json:"localAnnouncePort" default:"21027"`
 	LocalAnnMCAddr          string   `xml:"localAnnounceMCAddr" json:"localAnnounceMCAddr" default:"[ff12::8384]:21027"`
 	MaxSendKbps             int      `xml:"maxSendKbps" json:"maxSendKbps"`
 	MaxRecvKbps             int      `xml:"maxRecvKbps" json:"maxRecvKbps"`
 	ReconnectIntervalS      int      `xml:"reconnectionIntervalS" json:"reconnectionIntervalS" default:"60"`
-	RelaysEnabled           bool     `xml:"relaysEnabled" json:"relaysEnabled" default:"true"`
+	RelaysEnabled           bool     `xml:"relaysEnabled" json:"relaysEnabled" default:"false"`
 	RelayReconnectIntervalM int      `xml:"relayReconnectIntervalM" json:"relayReconnectIntervalM" default:"10"`
-	StartBrowser            bool     `xml:"startBrowser" json:"startBrowser" default:"true"`
-	NATEnabled              bool     `xml:"natEnabled" json:"natEnabled" default:"true"`
+	StartBrowser            bool     `xml:"startBrowser" json:"startBrowser" default:"false"`
+	NATEnabled              bool     `xml:"natEnabled" json:"natEnabled" default:"false"`
 	NATLeaseM               int      `xml:"natLeaseMinutes" json:"natLeaseMinutes" default:"60"`
 	NATRenewalM             int      `xml:"natRenewalMinutes" json:"natRenewalMinutes" default:"30"`
 	NATTimeoutS             int      `xml:"natTimeoutSeconds" json:"natTimeoutSeconds" default:"10"`
@@ -56,7 +56,7 @@ type OptionsConfiguration struct {
 	SetLowPriority          bool     `xml:"setLowPriority" json:"setLowPriority" default:"true"`
 	RawMaxFolderConcurrency int      `xml:"maxFolderConcurrency" json:"maxFolderConcurrency"`
 	CRURL                   string   `xml:"crashReportingURL" json:"crURL" default:"https://crash.syncthing.net/newcrash"` // crash reporting URL
-	CREnabled               bool     `xml:"crashReportingEnabled" json:"crashReportingEnabled" default:"true"`             // Read in the monitor, but it's read before every attempt to report stuff, so does not require a restart.
+	CREnabled               bool     `xml:"crashReportingEnabled" json:"crashReportingEnabled" default:"false"`            // Read in the monitor, but it's read before every attempt to report stuff, so does not require a restart.
 	StunKeepaliveStartS     int      `xml:"stunKeepaliveStartS" json:"stunKeepaliveStartS" default:"180"`                  // 0 for off
 	StunKeepaliveMinS       int      `xml:"stunKeepaliveMinS" json:"stunKeepaliveMinS" default:"20"`                       // 0 for off
 	RawStunServers          []string `xml:"stunServer" json:"stunServers" default:"default"`
