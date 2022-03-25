@@ -9,11 +9,8 @@ package backend
 import (
 	"errors"
 	"os"
-	"strings"
 	"sync"
 	"time"
-
-	"github.com/syncthing/syncthing/lib/locations"
 )
 
 // CommitHook is a function that is executed before a WriteTransaction is
@@ -128,7 +125,7 @@ const (
 )
 
 func Open(path string, tuning Tuning) (Backend, error) {
-	if os.Getenv("USE_BADGER") != "" {
+	/* if os.Getenv("USE_BADGER") != "" {
 		l.Warnln("Using experimental badger db")
 		if err := maybeCopyDatabase(path, strings.Replace(path, locations.BadgerDir, locations.LevelDBDir, 1), OpenBadger, OpenLevelDBRO); err != nil {
 			return nil, err
@@ -138,14 +135,15 @@ func Open(path string, tuning Tuning) (Backend, error) {
 
 	if err := maybeCopyDatabase(path, strings.Replace(path, locations.LevelDBDir, locations.BadgerDir, 1), OpenLevelDBAuto, OpenBadger); err != nil {
 		return nil, err
-	}
+	} */
+
 	return OpenLevelDB(path, tuning)
 }
 
 func OpenMemory() Backend {
-	if os.Getenv("USE_BADGER") != "" {
+	/* if os.Getenv("USE_BADGER") != "" {
 		return OpenBadgerMemory()
-	}
+	} */
 	return OpenLevelDBMemory()
 }
 
