@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"net/url"
 
+	"github.com/syncthing/syncthing/lib/appext"
 	"github.com/syncthing/syncthing/lib/config"
 	"github.com/syncthing/syncthing/lib/connections/registry"
 	"github.com/syncthing/syncthing/lib/nat"
@@ -22,14 +23,26 @@ type linkeaseListener struct {
 
 	uri     *url.URL
 	cfg     config.Wrapper
+	conns   chan internalConn
 	factory listenerFactory
 }
 
 func (link *linkeaseListener) serve(ctx context.Context) error {
-	l.Debugln("serve linkease listener")
+	l.Debugln("serve linkease listener, uri=", link.uri)
 	link.notifyAddressesChanged(link)
-	registry.Register(link.uri.Scheme, "linkease-test-address")
-	<-ctx.Done()
+	registry.Register(link.uri.Scheme, link.uri.Hostname())
+	appConns := appext.ServerConns(link.uri.Hostname())
+
+LINK_LOOP:
+	for {
+		select {
+		case <-ctx.Done():
+			break LINK_LOOP
+		case appConn := <-appConns:
+			link.conns <- internalConn{appConn, connTypeLinkEaseServer, tcpPriority}
+		}
+	}
+
 	return nil
 }
 

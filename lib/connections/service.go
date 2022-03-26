@@ -17,6 +17,7 @@ import (
 	stdsync "sync"
 	"time"
 
+	"github.com/syncthing/syncthing/lib/appext"
 	"github.com/syncthing/syncthing/lib/config"
 	"github.com/syncthing/syncthing/lib/discover"
 	"github.com/syncthing/syncthing/lib/events"
@@ -207,27 +208,13 @@ func (s *service) handle(ctx context.Context) {
 		case c = <-s.conns:
 		}
 
+		// Already tls check
 		cs := c.ConnectionState()
-
-		// We should have negotiated the next level protocol "bep/1.0" as part
-		// of the TLS handshake. Unfortunately this can't be a hard error,
-		// because there are implementations out there that don't support
-		// protocol negotiation (iOS for one...).
-		if !cs.NegotiatedProtocolIsMutual || cs.NegotiatedProtocol != s.bepProtocolName {
-			l.Infof("Peer at %s did not negotiate bep/1.0", c)
-		}
-
-		// We should have received exactly one certificate from the other
-		// side. If we didn't, they don't have a device ID and we drop the
-		// connection.
-		certs := cs.PeerCertificates
-		if cl := len(certs); cl != 1 {
-			l.Infof("Got peer certificate list of length %d != 1 from peer at %s; protocol error", cl, c)
+		remoteID, err := appext.GetDeviceID(&cs)
+		if err != nil {
 			c.Close()
 			continue
 		}
-		remoteCert := certs[0]
-		remoteID := protocol.NewDeviceID(remoteCert.Raw)
 
 		// The device ID should not be that of ourselves. It can happen
 		// though, especially in the presence of NAT hairpinning, multiple
@@ -294,26 +281,6 @@ func (s *service) handle(ctx context.Context) {
 		deviceCfg, ok := s.cfg.Device(remoteID)
 		if !ok {
 			l.Infof("Device %s removed from config during connection attempt at %s", remoteID, c)
-			c.Close()
-			continue
-		}
-
-		// Verify the name on the certificate. By default we set it to
-		// "syncthing" when generating, but the user may have replaced
-		// the certificate and used another name.
-		certName := deviceCfg.CertName
-		if certName == "" {
-			certName = s.tlsDefaultCommonName
-		}
-		if remoteCert.Subject.CommonName == certName {
-			// All good. We do this check because our old style certificates
-			// have "syncthing" in the CommonName field and no SANs, which
-			// is not accepted by VerifyHostname() any more as of Go 1.15.
-		} else if err := remoteCert.VerifyHostname(certName); err != nil {
-			// Incorrect certificate name is something the user most
-			// likely wants to know about, since it's an advanced
-			// config. Warn instead of Info.
-			l.Warnf("Bad certificate from %s at %s: %v", remoteID, c, err)
 			c.Close()
 			continue
 		}
@@ -885,10 +852,11 @@ func (s *service) dialParallel(ctx context.Context, deviceID protocol.DeviceID, 
 			wg.Add(1)
 			go func(tgt dialTarget) {
 				conn, err := tgt.Dial(ctx)
-				if err == nil {
-					// Closes the connection on error
-					err = s.validateIdentity(conn, deviceID)
-				}
+				// Not valid the remote connection, done in other place
+				//if err == nil {
+				// Closes the connection on error
+				//err = s.validateIdentity(conn, deviceID)
+				//}
 				s.setConnectionStatus(tgt.addr, err)
 				if err != nil {
 					l.Debugln("dialing", deviceID, tgt.uri, "error:", err)
