@@ -31,7 +31,7 @@ func (link *linkeaseListener) serve(ctx context.Context) error {
 	l.Debugln("serve linkease listener, uri=", link.uri)
 	link.notifyAddressesChanged(link)
 	registry.Register(link.uri.Scheme, link.uri.Hostname())
-	appConns := appext.ServerConns(link.uri.Hostname())
+	appConns := appext.ServerConns(link.uri.String())
 
 LINK_LOOP:
 	for {
@@ -39,6 +39,7 @@ LINK_LOOP:
 		case <-ctx.Done():
 			break LINK_LOOP
 		case appConn := <-appConns:
+			l.Debugln("got linkease server connection")
 			link.conns <- internalConn{appConn, connTypeLinkEaseServer, tcpPriority}
 		}
 	}
@@ -77,6 +78,7 @@ func (f *linkeaseListenerFactory) New(uri *url.URL, cfg config.Wrapper, tlsCfg *
 		uri:     uri,
 		cfg:     cfg,
 		factory: f,
+		conns:   conns,
 	}
 	l.ServiceWithError = util.AsServiceWithError(l.serve, l.String())
 	return l

@@ -209,9 +209,14 @@ func (s *service) handle(ctx context.Context) {
 		}
 
 		// Already tls check
+		// cient side and server side here
 		cs := c.ConnectionState()
 		remoteID, err := appext.GetDeviceID(&cs)
+
+		l.Infoln("remoteID=", remoteID, "err=", err)
+
 		if err != nil {
+			l.Infoln("Cannot get deviceId from connection")
 			c.Close()
 			continue
 		}
