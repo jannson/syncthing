@@ -26,6 +26,10 @@ func (f *BasicFilesystem) Watch(name string, ignore Matcher, ctx context.Context
 		return nil, nil, err
 	}
 
+	if WatchImpl != nil {
+		return WatchImpl(ctx, watchPath, ignore)
+	}
+
 	outChan := make(chan Event)
 	backendChan := make(chan notify.EventInfo, backendBuffer)
 

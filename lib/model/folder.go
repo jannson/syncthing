@@ -825,6 +825,8 @@ func (f *folder) monitorWatch(ctx context.Context) {
 		select {
 		case <-failTimer.C:
 			eventChan, errChan, err = f.Filesystem().Watch(".", f.ignores, ctx, f.IgnorePerms)
+			//eventChan, errChan, err = appext.WatchImpl(ctx, f.Path, f.ignores)
+
 			// We do this once per minute initially increased to
 			// max one hour in case of repeat failures.
 			f.scanOnWatchErr()

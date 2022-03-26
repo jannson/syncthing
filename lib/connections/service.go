@@ -631,6 +631,7 @@ func (s *service) CommitConfiguration(from, to config.Configuration) bool {
 		switch err {
 		case nil:
 			// all good
+			l.Debugln("Listener for %v: %v", uri, "OK")
 		case errDisabled:
 			l.Debugln("Listener for", uri, "is disabled")
 			continue

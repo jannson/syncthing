@@ -226,6 +226,9 @@ func (s *apiSrv) handleGET(ctx context.Context, w http.ResponseWriter, req *http
 
 func (s *apiSrv) handlePOST(ctx context.Context, remoteAddr *net.TCPAddr, w http.ResponseWriter, req *http.Request) {
 	reqID := ctx.Value(idKey).(requestID)
+	if debug {
+		log.Println(reqID, "handlePost")
+	}
 
 	rawCert := certificateBytes(req)
 	if rawCert == nil {
@@ -251,8 +254,11 @@ func (s *apiSrv) handlePOST(ctx context.Context, remoteAddr *net.TCPAddr, w http
 
 	deviceID := protocol.NewDeviceID(rawCert)
 
-	addresses := fixupAddresses(remoteAddr, ann.Addresses)
+	addresses := ann.Addresses
 	if len(addresses) == 0 {
+		if debug {
+			log.Println(reqID, "handlePost address failed", remoteAddr, ann.Addresses)
+		}
 		announceRequestsTotal.WithLabelValues("bad_request").Inc()
 		w.Header().Set("Retry-After", errorRetryAfterString())
 		http.Error(w, "Bad Request", http.StatusBadRequest)

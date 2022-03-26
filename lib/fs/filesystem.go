@@ -16,6 +16,10 @@ import (
 	"time"
 )
 
+type FnWatchImpl func(ctx context.Context, absPath string, ignores Matcher) (<-chan Event, <-chan error, error)
+
+var WatchImpl FnWatchImpl
+
 // The Filesystem interface abstracts access to the file system.
 type Filesystem interface {
 	Chmod(name string, mode FileMode) error
