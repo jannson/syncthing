@@ -409,9 +409,10 @@ func (a *App) setupGUI(m model.Model, defaultSub, diskSub events.BufferedSubscri
 		return nil
 	}
 
-	if guiCfg.InsecureAdminAccess {
+	// ignore this warning
+	/*if guiCfg.InsecureAdminAccess {
 		l.Warnln("Insecure admin access is enabled.")
-	}
+	}*/
 
 	summaryService := model.NewFolderSummaryService(a.cfg, m, a.myID, a.evLogger)
 	a.mainService.Add(summaryService)

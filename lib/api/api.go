@@ -438,11 +438,13 @@ func (s *service) String() string {
 }
 
 func (s *service) VerifyConfiguration(from, to config.Configuration) error {
-	if to.GUI.Network() != "tcp" {
+	/*if to.GUI.Network() != "tcp" {
 		return nil
 	}
 	_, err := net.ResolveTCPAddr("tcp", to.GUI.Address())
-	return err
+	return err */
+	// not check gui address
+	return nil
 }
 
 func (s *service) CommitConfiguration(from, to config.Configuration) bool {
