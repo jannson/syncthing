@@ -36,6 +36,7 @@ import (
 	"github.com/vitrun/qart/qr"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/syncthing/syncthing/lib/appext"
 	"github.com/syncthing/syncthing/lib/build"
 	"github.com/syncthing/syncthing/lib/config"
 	"github.com/syncthing/syncthing/lib/connections"
@@ -141,7 +142,14 @@ func (s *service) WaitForStart() error {
 	return s.startupErr
 }
 
-func (s *service) getListener(guiCfg config.GUIConfiguration) (net.Listener, error) {
+func (s *service) getListener(guiCfg config.GUIConfiguration) (net.Listener, bool, error) {
+	lis, err := appext.GetGuiListener(guiCfg.Network(), guiCfg.Address())
+	if err == nil {
+		return lis, true, nil
+	} else if err != appext.ErrNext {
+		return nil, true, err
+	}
+
 	httpsCertFile := locations.Get(locations.HTTPSCertFile)
 	httpsKeyFile := locations.Get(locations.HTTPSKeyFile)
 	cert, err := tls.LoadX509KeyPair(httpsCertFile, httpsKeyFile)
@@ -166,7 +174,7 @@ func (s *service) getListener(guiCfg config.GUIConfiguration) (net.Listener, err
 		cert, err = tlsutil.NewCertificate(httpsCertFile, httpsKeyFile, name, httpsCertLifetimeDays)
 	}
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	tlsCfg := tlsutil.SecureDefault()
 	tlsCfg.Certificates = []tls.Certificate{cert}
@@ -179,7 +187,7 @@ func (s *service) getListener(guiCfg config.GUIConfiguration) (net.Listener, err
 	}
 	rawListener, err := net.Listen(guiCfg.Network(), guiCfg.Address())
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	if guiCfg.Network() == "unix" && guiCfg.UnixSocketPermissions() != 0 {
@@ -187,7 +195,7 @@ func (s *service) getListener(guiCfg config.GUIConfiguration) (net.Listener, err
 		// required for operation.
 		err = os.Chmod(guiCfg.Address(), guiCfg.UnixSocketPermissions())
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 	}
 
@@ -195,7 +203,7 @@ func (s *service) getListener(guiCfg config.GUIConfiguration) (net.Listener, err
 		Listener:  rawListener,
 		TLSConfig: tlsCfg,
 	}
-	return listener, nil
+	return listener, false, nil
 }
 
 func sendJSON(w http.ResponseWriter, jsonObject interface{}) {
@@ -213,7 +221,7 @@ func sendJSON(w http.ResponseWriter, jsonObject interface{}) {
 }
 
 func (s *service) serve(ctx context.Context) {
-	listener, err := s.getListener(s.cfg.GUI())
+	listener, isLinkEase, err := s.getListener(s.cfg.GUI())
 	if err != nil {
 		select {
 		case <-s.startedOnce:
@@ -351,14 +359,19 @@ func (s *service) serve(ctx context.Context) {
 
 	handler = debugMiddleware(handler)
 
-	srv := http.Server{
-		Handler: handler,
-		// ReadTimeout must be longer than SyncthingController $scope.refresh
-		// interval to avoid HTTP keepalive/GUI refresh race.
-		ReadTimeout: 15 * time.Second,
-		// Prevent the HTTP server from logging stuff on its own. The things we
-		// care about we log ourselves from the handlers.
-		ErrorLog: log.New(ioutil.Discard, "", 0),
+	var srv *http.Server
+	if isLinkEase {
+		appext.SetGuiHandler(s.cfg.GUI().Address(), handler)
+	} else {
+		srv = &http.Server{
+			Handler: handler,
+			// ReadTimeout must be longer than SyncthingController $scope.refresh
+			// interval to avoid HTTP keepalive/GUI refresh race.
+			ReadTimeout: 15 * time.Second,
+			// Prevent the HTTP server from logging stuff on its own. The things we
+			// care about we log ourselves from the handlers.
+			ErrorLog: log.New(ioutil.Discard, "", 0),
+		}
 	}
 
 	l.Infoln("GUI and API listening on", listener.Addr())
@@ -382,12 +395,14 @@ func (s *service) serve(ctx context.Context) {
 	// Serve in the background
 
 	serveError := make(chan error, 1)
-	go func() {
-		select {
-		case serveError <- srv.Serve(listener):
-		case <-ctx.Done():
-		}
-	}()
+	if !isLinkEase {
+		go func() {
+			select {
+			case serveError <- srv.Serve(listener):
+			case <-ctx.Done():
+			}
+		}()
+	}
 
 	// Wait for stop, restart or error signals
 
@@ -402,7 +417,9 @@ func (s *service) serve(ctx context.Context) {
 		// Restart due to listen/serve failure
 		l.Warnln("GUI/API:", err, "(restarting)")
 	}
-	srv.Close()
+	if srv != nil {
+		srv.Close()
+	}
 }
 
 // Complete implements suture.IsCompletable, which signifies to the supervisor

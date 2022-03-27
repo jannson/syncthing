@@ -27,9 +27,10 @@ import (
 	"github.com/syncthing/syncthing/lib/sync"
 	"github.com/syncthing/syncthing/lib/util"
 
+	// Ignore syncthing nat module
 	// Registers NAT service providers
-	_ "github.com/syncthing/syncthing/lib/pmp"
-	_ "github.com/syncthing/syncthing/lib/upnp"
+	// _ "github.com/syncthing/syncthing/lib/pmp"
+	// _ "github.com/syncthing/syncthing/lib/upnp"
 
 	"github.com/pkg/errors"
 	"github.com/thejerf/suture"
