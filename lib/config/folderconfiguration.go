@@ -63,6 +63,7 @@ type FolderConfiguration struct {
 	CopyRangeMethod         fs.CopyRangeMethod          `xml:"copyRangeMethod" json:"copyRangeMethod" default:"standard"`
 	CaseSensitiveFS         bool                        `xml:"caseSensitiveFS" json:"caseSensitiveFS"`
 	JunctionsAsDirs         bool                        `xml:"junctionsAsDirs" json:"junctionsAsDirs"`
+	Meta                    string                      `xml:"meta" json:"meta"`
 
 	cachedModTimeWindow time.Duration
 

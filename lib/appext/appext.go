@@ -13,8 +13,12 @@ import (
 
 var ErrNext = errors.New("next")
 
+type GuiHandler interface {
+	GetHttpHandle() http.Handler
+}
+
 type Manager interface {
-	SetGuiHandler(localAddr string, handle http.Handler)
+	SetGuiHandler(localAddr string, guiHandle GuiHandler)
 	GetGuiListener(network, localAddr string) (net.Listener, error)
 	GetDeviceID(state *tls.ConnectionState) (protocol.DeviceID, error)
 	ServerConns(linkHost string) <-chan Conn
@@ -40,8 +44,8 @@ func ServerConns(linkHost string) <-chan Conn {
 	return appMgr.ServerConns(linkHost)
 }
 
-func SetGuiHandler(localAddr string, handle http.Handler) {
-	appMgr.SetGuiHandler(localAddr, handle)
+func SetGuiHandler(localAddr string, guiHandle GuiHandler) {
+	appMgr.SetGuiHandler(localAddr, guiHandle)
 }
 
 func GetGuiListener(network, localAddr string) (net.Listener, error) {

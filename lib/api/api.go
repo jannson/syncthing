@@ -108,6 +108,18 @@ type Service interface {
 	WaitForStart() error
 }
 
+type GuiHandler struct {
+	Id     protocol.DeviceID
+	Model  model.Model
+	Contr  Controller
+	Fss    model.FolderSummaryService
+	handle http.Handler
+}
+
+func (guiHandle *GuiHandler) GetHttpHandle() http.Handler {
+	return guiHandle.handle
+}
+
 func New(id protocol.DeviceID, cfg config.Wrapper, assetDir, tlsDefaultCommonName string, m model.Model, defaultSub, diskSub events.BufferedSubscription, evLogger events.Logger, discoverer discover.Manager, connectionsService connections.Service, urService *ur.Service, fss model.FolderSummaryService, errors, systemLog logger.Recorder, contr Controller, noUpgrade bool) Service {
 	s := &service{
 		id:      id,
@@ -361,7 +373,13 @@ func (s *service) serve(ctx context.Context) {
 
 	var srv *http.Server
 	if isLinkEase {
-		appext.SetGuiHandler(s.cfg.GUI().Address(), handler)
+		appext.SetGuiHandler(s.cfg.GUI().Address(), &GuiHandler{
+			Id:     s.id,
+			Model:  s.model,
+			Contr:  s.contr,
+			Fss:    s.fss,
+			handle: handler,
+		})
 	} else {
 		srv = &http.Server{
 			Handler: handler,

@@ -39,7 +39,7 @@ LINK_LOOP:
 		case <-ctx.Done():
 			break LINK_LOOP
 		case appConn := <-appConns:
-			l.Debugln("got linkease server connection")
+			l.Debugln("got linkease server connection, uri=", link.uri)
 			link.conns <- internalConn{appConn, connTypeLinkEaseServer, tcpPriority}
 		}
 	}
