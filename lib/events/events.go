@@ -286,6 +286,7 @@ func NewLogger() Logger {
 }
 
 func (l *logger) Serve(ctx context.Context) error {
+	//dl.Warnln("serve once, l=", l)
 loop:
 	for {
 		select {
@@ -311,6 +312,8 @@ loop:
 	for _, s := range l.subs {
 		close(s.events)
 	}
+	//l.subs = l.subs[:0]
+	//l.nextSubscriptionIDs = l.nextSubscriptionIDs[:0]
 
 	return nil
 }
@@ -358,7 +361,7 @@ func (l *logger) sendEvent(e Event) {
 func (l *logger) Subscribe(mask EventType) Subscription {
 	res := make(chan Subscription)
 	l.funcs <- func(ctx context.Context) {
-		dl.Debugln("subscribe", mask)
+		dl.Debugln("subscribe", mask, "value", int64(mask))
 
 		s := &subscription{
 			mask:          mask,

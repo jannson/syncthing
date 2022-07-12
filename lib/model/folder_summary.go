@@ -183,6 +183,7 @@ func (c *folderSummaryService) listenForUpdates(ctx context.Context) error {
 			if ok {
 				c.processUpdate(ev)
 			} else {
+				l.Warnln("folder summary service closed")
 				return errors.New("closed")
 			}
 		case <-ctx.Done():
