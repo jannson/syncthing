@@ -21,12 +21,12 @@ import (
 	"github.com/syncthing/syncthing/lib/svcutil"
 )
 
-func init() {
+/* ignore tcp func init() {
 	factory := &tcpListenerFactory{}
 	for _, scheme := range []string{"tcp", "tcp4", "tcp6"} {
 		listeners[scheme] = factory
 	}
-}
+} */
 
 type tcpListener struct {
 	svcutil.ServiceWithError
@@ -227,6 +227,6 @@ func (f *tcpListenerFactory) New(uri *url.URL, cfg config.Wrapper, tlsCfg *tls.C
 }
 
 func (tcpListenerFactory) Valid(_ config.Configuration) error {
-	// Always valid
-	return nil
+	// Always disabled, changed!
+	return errDisabled
 }

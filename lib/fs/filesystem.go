@@ -16,6 +16,10 @@ import (
 	"time"
 )
 
+type FnWatchImpl func(ctx context.Context, absPath string, ignores Matcher) (<-chan Event, <-chan error, error)
+
+var WatchImpl FnWatchImpl
+
 type filesystemWrapperType int32
 
 const (

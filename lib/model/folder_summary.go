@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/thejerf/suture/v4"
 
 	"github.com/syncthing/syncthing/lib/config"
@@ -178,8 +179,12 @@ func (c *folderSummaryService) listenForUpdates(ctx context.Context) error {
 		// This loop needs to be fast so we don't miss too many events.
 
 		select {
-		case ev := <-sub.C():
-			c.processUpdate(ev)
+		case ev, ok := <-sub.C():
+			if ok {
+				c.processUpdate(ev)
+			} else {
+				return errors.New("closed")
+			}
 		case <-ctx.Done():
 			return ctx.Err()
 		}

@@ -8,15 +8,11 @@ package api
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/base64"
-	"fmt"
-	"net"
 	"net/http"
 	"strings"
 	"time"
 
-	ldap "github.com/go-ldap/ldap/v3"
 	"github.com/syncthing/syncthing/lib/config"
 	"github.com/syncthing/syncthing/lib/events"
 	"github.com/syncthing/syncthing/lib/rand"
@@ -120,86 +116,13 @@ func basicAuthAndSessionMiddleware(cookieName string, guiCfg config.GUIConfigura
 }
 
 func auth(username string, password string, guiCfg config.GUIConfiguration, ldapCfg config.LDAPConfiguration) bool {
-	if guiCfg.AuthMode == config.AuthModeLDAP {
-		return authLDAP(username, password, ldapCfg)
-	} else {
-		return authStatic(username, password, guiCfg.User, guiCfg.Password)
-	}
+	return authStatic(username, password, guiCfg.User, guiCfg.Password)
 }
 
 func authStatic(username string, password string, configUser string, configPassword string) bool {
 	configPasswordBytes := []byte(configPassword)
 	passwordBytes := []byte(password)
 	return bcrypt.CompareHashAndPassword(configPasswordBytes, passwordBytes) == nil && username == configUser
-}
-
-func authLDAP(username string, password string, cfg config.LDAPConfiguration) bool {
-	address := cfg.Address
-	hostname, _, err := net.SplitHostPort(address)
-	if err != nil {
-		hostname = address
-	}
-	var connection *ldap.Conn
-	if cfg.Transport == config.LDAPTransportTLS {
-		connection, err = ldap.DialTLS("tcp", address, &tls.Config{
-			ServerName:         hostname,
-			InsecureSkipVerify: cfg.InsecureSkipVerify,
-		})
-	} else {
-		connection, err = ldap.Dial("tcp", address)
-	}
-
-	if err != nil {
-		l.Warnln("LDAP Dial:", err)
-		return false
-	}
-
-	if cfg.Transport == config.LDAPTransportStartTLS {
-		err = connection.StartTLS(&tls.Config{InsecureSkipVerify: cfg.InsecureSkipVerify})
-		if err != nil {
-			l.Warnln("LDAP Start TLS:", err)
-			return false
-		}
-	}
-
-	defer connection.Close()
-
-	err = connection.Bind(fmt.Sprintf(cfg.BindDN, username), password)
-	if err != nil {
-		l.Warnln("LDAP Bind:", err)
-		return false
-	}
-
-	if cfg.SearchFilter == "" && cfg.SearchBaseDN == "" {
-		// We're done here.
-		return true
-	}
-
-	if cfg.SearchFilter == "" || cfg.SearchBaseDN == "" {
-		l.Warnln("LDAP configuration: both searchFilter and searchBaseDN must be set, or neither.")
-		return false
-	}
-
-	// If a search filter and search base is set we do an LDAP search for
-	// the user. If this matches precisely one user then we are good to go.
-	// The search filter uses the same %s interpolation as the bind DN.
-
-	searchString := fmt.Sprintf(cfg.SearchFilter, username)
-	const sizeLimit = 2  // we search for up to two users -- we only want to match one, so getting any number >1 is a failure.
-	const timeLimit = 60 // Search for up to a minute...
-	searchReq := ldap.NewSearchRequest(cfg.SearchBaseDN, ldap.ScopeWholeSubtree, ldap.DerefFindingBaseObj, sizeLimit, timeLimit, false, searchString, nil, nil)
-
-	res, err := connection.Search(searchReq)
-	if err != nil {
-		l.Warnln("LDAP Search:", err)
-		return false
-	}
-	if len(res.Entries) != 1 {
-		l.Infof("Wrong number of LDAP search results, %d != 1", len(res.Entries))
-		return false
-	}
-
-	return true
 }
 
 // Convert an ISO-8859-1 encoded byte string to UTF-8. Works by the

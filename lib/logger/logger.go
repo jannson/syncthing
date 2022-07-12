@@ -15,6 +15,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -69,7 +70,8 @@ type logger struct {
 }
 
 // DefaultLogger logs to standard output with a time prefix.
-var DefaultLogger = New()
+var DefaultWriter *SwitchWriter
+var DefaultLogger = newDefault()
 
 func New() Logger {
 	if os.Getenv("LOGGER_DISCARD") != "" {
@@ -88,6 +90,51 @@ func newLogger(w io.Writer) Logger {
 		debug:      make(map[string]struct{}),
 	}
 }
+
+func newDefault() Logger {
+	if os.Getenv("LOGGER_DISCARD") != "" {
+		// Hack to completely disable logging, for example when running
+		// benchmarks.
+		return newLogger(ioutil.Discard)
+	}
+	DefaultWriter = &SwitchWriter{}
+	DefaultWriter.w[0] = controlStripper{os.Stdout}
+	return newLogger(DefaultWriter)
+}
+
+/*
+func CloneLogger(ll Logger, w io.Writer) Logger {
+	l, ok := ll.(*logger)
+	if !ok {
+		// TODO
+		panic("error logger")
+	}
+	newLogger := &logger{
+		logger:     log.New(w, "", l.logger.Flags()),
+		facilities: make(map[string]string),
+		debug:      make(map[string]struct{}),
+	}
+
+	newLogger.SetPrefix(l.logger.Prefix())
+	l.mut.Lock()
+	for i, v := range l.handlers {
+		if v != nil && len(v) > 0 {
+			for _, vv := range v {
+				newLogger.handlers[i] = append(newLogger.handlers[i], vv)
+			}
+		}
+	}
+	for k, v := range l.facilities {
+		newLogger.facilities[k] = v
+	}
+	for k, v := range l.debug {
+		newLogger.debug[k] = v
+	}
+	l.mut.Unlock()
+
+	return newLogger
+}
+*/
 
 // AddHandler registers a new MessageHandler to receive messages with the
 // specified log level or above.
@@ -382,4 +429,27 @@ func (s controlStripper) Write(data []byte) (int, error) {
 		}
 	}
 	return s.Writer.Write(data)
+}
+
+type SwitchWriter struct {
+	idx int32
+	w   [2]io.Writer
+}
+
+func (sw *SwitchWriter) Write(data []byte) (int, error) {
+	i := atomic.LoadInt32(&sw.idx)
+	return sw.w[i].Write(data)
+}
+
+func (sw *SwitchWriter) Switch(w io.Writer) bool {
+	if w != nil {
+		if atomic.CompareAndSwapInt32(&sw.idx, 0, 1) {
+			sw.w[1] = w
+			return true
+		}
+		return false
+	} else {
+		atomic.StoreInt32(&sw.idx, 0)
+		return true
+	}
 }

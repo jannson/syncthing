@@ -101,7 +101,7 @@ type Model interface {
 
 	Completion(device protocol.DeviceID, folder string) (FolderCompletion, error)
 	ConnectionStats() map[string]interface{}
-	DeviceStatistics() (map[protocol.DeviceID]stats.DeviceStatistics, error)
+	//DeviceStatistics() (map[protocol.DeviceID]stats.DeviceStatistics, error)
 	FolderStatistics() (map[string]stats.FolderStatistics, error)
 	UsageReportingStats(report *contract.Report, version int, preview bool)
 

@@ -253,7 +253,8 @@ func (s *apiSrv) handlePOST(ctx context.Context, remoteAddr *net.TCPAddr, w http
 
 	deviceID := protocol.NewDeviceID(rawCert)
 
-	addresses := fixupAddresses(remoteAddr, ann.Addresses)
+	//addresses := fixupAddresses(remoteAddr, ann.Addresses)
+	addresses := ann.Addresses
 	if len(addresses) == 0 {
 		announceRequestsTotal.WithLabelValues("bad_request").Inc()
 		w.Header().Set("Retry-After", errorRetryAfterString())

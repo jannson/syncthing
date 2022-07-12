@@ -39,6 +39,7 @@ import (
 	"golang.org/x/text/transform"
 	"golang.org/x/text/unicode/norm"
 
+	"github.com/syncthing/syncthing/lib/appext"
 	"github.com/syncthing/syncthing/lib/build"
 	"github.com/syncthing/syncthing/lib/config"
 	"github.com/syncthing/syncthing/lib/connections"
@@ -100,6 +101,17 @@ type Service interface {
 	WaitForStart() error
 }
 
+type GuiHandler struct {
+	Id     protocol.DeviceID
+	Model  model.Model
+	Fss    model.FolderSummaryService
+	handle http.Handler
+}
+
+func (guiHandle *GuiHandler) GetHttpHandle() http.Handler {
+	return guiHandle.handle
+}
+
 func New(id protocol.DeviceID, cfg config.Wrapper, assetDir, tlsDefaultCommonName string, m model.Model, defaultSub, diskSub events.BufferedSubscription, evLogger events.Logger, discoverer discover.Manager, connectionsService connections.Service, urService *ur.Service, fss model.FolderSummaryService, errors, systemLog logger.Recorder, noUpgrade bool) Service {
 	return &service{
 		id:      id,
@@ -131,7 +143,14 @@ func (s *service) WaitForStart() error {
 	return s.startupErr
 }
 
-func (s *service) getListener(guiCfg config.GUIConfiguration) (net.Listener, error) {
+func (s *service) getListener(guiCfg config.GUIConfiguration) (net.Listener, bool, error) {
+	lis, err := appext.GetGuiListener(guiCfg.Network(), guiCfg.Address())
+	if err == nil {
+		return lis, true, nil
+	} else if err != appext.ErrNext {
+		return nil, true, err
+	}
+
 	httpsCertFile := locations.Get(locations.HTTPSCertFile)
 	httpsKeyFile := locations.Get(locations.HTTPSKeyFile)
 	cert, err := tls.LoadX509KeyPair(httpsCertFile, httpsKeyFile)
@@ -160,7 +179,7 @@ func (s *service) getListener(guiCfg config.GUIConfiguration) (net.Listener, err
 		cert, err = tlsutil.NewCertificate(httpsCertFile, httpsKeyFile, name, httpsCertLifetimeDays)
 	}
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	tlsCfg := tlsutil.SecureDefaultWithTLS12()
 	tlsCfg.Certificates = []tls.Certificate{cert}
@@ -173,7 +192,7 @@ func (s *service) getListener(guiCfg config.GUIConfiguration) (net.Listener, err
 	}
 	rawListener, err := net.Listen(guiCfg.Network(), guiCfg.Address())
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	if guiCfg.Network() == "unix" && guiCfg.UnixSocketPermissions() != 0 {
@@ -181,7 +200,7 @@ func (s *service) getListener(guiCfg config.GUIConfiguration) (net.Listener, err
 		// required for operation.
 		err = os.Chmod(guiCfg.Address(), guiCfg.UnixSocketPermissions())
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 	}
 
@@ -189,7 +208,7 @@ func (s *service) getListener(guiCfg config.GUIConfiguration) (net.Listener, err
 		Listener:  rawListener,
 		TLSConfig: tlsCfg,
 	}
-	return listener, nil
+	return listener, false, nil
 }
 
 func sendJSON(w http.ResponseWriter, jsonObject interface{}) {
@@ -207,7 +226,7 @@ func sendJSON(w http.ResponseWriter, jsonObject interface{}) {
 }
 
 func (s *service) Serve(ctx context.Context) error {
-	listener, err := s.getListener(s.cfg.GUI())
+	listener, isLinkEase, err := s.getListener(s.cfg.GUI())
 	if err != nil {
 		select {
 		case <-s.startedOnce:
@@ -369,14 +388,24 @@ func (s *service) Serve(ctx context.Context) error {
 
 	handler = debugMiddleware(handler)
 
-	srv := http.Server{
-		Handler: handler,
-		// ReadTimeout must be longer than SyncthingController $scope.refresh
-		// interval to avoid HTTP keepalive/GUI refresh race.
-		ReadTimeout: 15 * time.Second,
-		// Prevent the HTTP server from logging stuff on its own. The things we
-		// care about we log ourselves from the handlers.
-		ErrorLog: log.New(ioutil.Discard, "", 0),
+	var srv *http.Server
+	if isLinkEase {
+		appext.SetGuiHandler(s.cfg.GUI().Address(), &GuiHandler{
+			Id:     s.id,
+			Model:  s.model,
+			Fss:    s.fss,
+			handle: handler,
+		})
+	} else {
+		srv = &http.Server{
+			Handler: handler,
+			// ReadTimeout must be longer than SyncthingController $scope.refresh
+			// interval to avoid HTTP keepalive/GUI refresh race.
+			ReadTimeout: 15 * time.Second,
+			// Prevent the HTTP server from logging stuff on its own. The things we
+			// care about we log ourselves from the handlers.
+			ErrorLog: log.New(ioutil.Discard, "", 0),
+		}
 	}
 
 	l.Infoln("GUI and API listening on", listener.Addr())
@@ -400,12 +429,14 @@ func (s *service) Serve(ctx context.Context) error {
 	// Serve in the background
 
 	serveError := make(chan error, 1)
-	go func() {
-		select {
-		case serveError <- srv.Serve(listener):
-		case <-ctx.Done():
-		}
-	}()
+	if !isLinkEase {
+		go func() {
+			select {
+			case serveError <- srv.Serve(listener):
+			case <-ctx.Done():
+			}
+		}()
+	}
 
 	// Wait for stop, restart or error signals
 
@@ -449,11 +480,13 @@ func (s *service) String() string {
 }
 
 func (s *service) VerifyConfiguration(from, to config.Configuration) error {
-	if to.GUI.Network() != "tcp" {
+	/*if to.GUI.Network() != "tcp" {
 		return nil
 	}
 	_, err := net.ResolveTCPAddr("tcp", to.GUI.Address())
-	return err
+	return err */
+	// not check gui address
+	return nil
 }
 
 func (s *service) CommitConfiguration(from, to config.Configuration) bool {

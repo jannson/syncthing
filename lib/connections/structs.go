@@ -50,6 +50,8 @@ const (
 	connTypeTCPServer
 	connTypeQUICClient
 	connTypeQUICServer
+	connTypeLinkEaseClient
+	connTypeLinkEaseServer
 )
 
 func (t connType) String() string {
@@ -66,6 +68,10 @@ func (t connType) String() string {
 		return "quic-client"
 	case connTypeQUICServer:
 		return "quic-server"
+	case connTypeLinkEaseClient:
+		return "linkease-client"
+	case connTypeLinkEaseServer:
+		return "linkease-server"
 	default:
 		return "unknown-type"
 	}
@@ -79,6 +85,8 @@ func (t connType) Transport() string {
 		return "tcp"
 	case connTypeQUICClient, connTypeQUICServer:
 		return "quic"
+	case connTypeLinkEaseClient, connTypeLinkEaseServer:
+		return "linkease"
 	default:
 		return "unknown"
 	}
