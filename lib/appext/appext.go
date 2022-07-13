@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/syncthing/syncthing/lib/events"
 	"github.com/syncthing/syncthing/lib/protocol"
 )
 
@@ -15,6 +16,7 @@ var ErrNext = errors.New("next")
 
 type GuiHandler interface {
 	GetHttpHandle() http.Handler
+	GetDiskEvents(folderId string) []events.Event
 }
 
 type Manager interface {

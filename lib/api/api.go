@@ -106,10 +106,28 @@ type GuiHandler struct {
 	Model  model.Model
 	Fss    model.FolderSummaryService
 	handle http.Handler
+
+	srv *service
 }
 
 func (guiHandle *GuiHandler) GetHttpHandle() http.Handler {
 	return guiHandle.handle
+}
+
+func (guiHandle *GuiHandler) GetDiskEvents(folderId string) []events.Event {
+	s := guiHandle.srv
+	eventSub := s.getEventSub(DiskEventMask)
+	if eventSub.Mask()&(events.FolderSummary|events.FolderCompletion) != 0 {
+		s.fss.OnEventRequest()
+	}
+	timeout := time.Second * 10
+	since := 0
+	limit := 100
+	evs := eventSub.Since(since, []events.Event{}, timeout)
+	if 0 < limit && limit < len(evs) {
+		evs = evs[len(evs)-limit:]
+	}
+	return evs
 }
 
 func New(id protocol.DeviceID, cfg config.Wrapper, assetDir, tlsDefaultCommonName string, m model.Model, defaultSub, diskSub events.BufferedSubscription, evLogger events.Logger, discoverer discover.Manager, connectionsService connections.Service, urService *ur.Service, fss model.FolderSummaryService, errors, systemLog logger.Recorder, noUpgrade bool) Service {
