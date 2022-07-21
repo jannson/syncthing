@@ -130,6 +130,10 @@ func (guiHandle *GuiHandler) GetDiskEvents(folderId string) []events.Event {
 	return evs
 }
 
+func (guiHandle *GuiHandler) GetWrapper() config.Wrapper {
+	return guiHandle.srv.cfg
+}
+
 func New(id protocol.DeviceID, cfg config.Wrapper, assetDir, tlsDefaultCommonName string, m model.Model, defaultSub, diskSub events.BufferedSubscription, evLogger events.Logger, discoverer discover.Manager, connectionsService connections.Service, urService *ur.Service, fss model.FolderSummaryService, errors, systemLog logger.Recorder, noUpgrade bool) Service {
 	return &service{
 		id:      id,
@@ -409,6 +413,7 @@ func (s *service) Serve(ctx context.Context) error {
 	var srv *http.Server
 	if isLinkEase {
 		appext.SetGuiHandler(s.cfg.GUI().Address(), &GuiHandler{
+			srv:    s,
 			Id:     s.id,
 			Model:  s.model,
 			Fss:    s.fss,
@@ -471,12 +476,15 @@ func (s *service) Serve(ctx context.Context) error {
 		// Restart due to listen/serve failure
 		l.Warnln("GUI/API:", err, "(restarting)")
 	}
-	// Give it a moment to shut down gracefully, e.g. if we are restarting
-	// due to a config change through the API, let that finish successfully.
-	timeout, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
-	if err := srv.Shutdown(timeout); err == timeout.Err() {
-		srv.Close()
+
+	if !isLinkEase {
+		// Give it a moment to shut down gracefully, e.g. if we are restarting
+		// due to a config change through the API, let that finish successfully.
+		timeout, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+		if err := srv.Shutdown(timeout); err == timeout.Err() {
+			srv.Close()
+		}
 	}
 
 	return err
