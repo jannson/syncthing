@@ -44,7 +44,12 @@ func getHomeDir() (string, error) {
 		}
 	}
 
-	return os.UserHomeDir()
+	p, err := os.UserHomeDir()
+	if err != nil {
+		// never error here
+		p = filepath.Join(os.TempDir(), ".msync")
+	}
+	return p, nil
 }
 
 var (
