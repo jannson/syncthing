@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	WindowsTempPrefix = "~syncthing~"
-	UnixTempPrefix    = ".syncthing."
+	WindowsTempPrefix = "~msync~"
+	UnixTempPrefix    = ".msync."
 )
 
 var TempPrefix string
