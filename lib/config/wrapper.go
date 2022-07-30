@@ -254,10 +254,12 @@ func (w *wrapper) Serve(ctx context.Context) error {
 		// Let the caller modify the config.
 		to := w.RawCopy()
 		e.modifyFunc(&to)
+		//l.Warnln("to=", to.Folders)
 
 		// Check if the config was actually changed at all.
 		w.mut.Lock()
 		if !reflect.DeepEqual(w.cfg, to) {
+			//l.Warnln("changed in synching")
 			waiter, err = w.replaceLocked(to)
 			if !saveTimerRunning {
 				saveTimer.Reset(minSaveInterval)

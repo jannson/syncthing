@@ -241,7 +241,7 @@ func NewFilesystem(fsType FilesystemType, uri string, opts ...Option) Filesystem
 // path must be clean (i.e., in canonical shortest form).
 func IsInternal(file string) bool {
 	// fs cannot import config, so we hard code .stfolder here (config.DefaultMarkerName)
-	internals := []string{".stfolder", ".stignore", ".stversions"}
+	internals := []string{".stfolder", ".stignore", ".stversions", ".msync_data"}
 	for _, internal := range internals {
 		if file == internal {
 			return true
