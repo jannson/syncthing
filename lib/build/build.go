@@ -20,7 +20,7 @@ import (
 
 var (
 	// Injected by build script
-	Version = "unknown-dev"
+	Version = "v1.17.0"
 	Host    = "unknown"
 	User    = "unknown"
 	Stamp   = "0"

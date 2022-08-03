@@ -46,6 +46,7 @@ import (
 const (
 	bepProtocolName        = "bep/1.0"
 	tlsDefaultCommonName   = "syncthing"
+	defaultModelName       = "msync"
 	maxSystemErrors        = 5
 	initialSystemLog       = 10
 	maxSystemLog           = 250
@@ -243,7 +244,7 @@ func (a *App) startup() error {
 		miscDB.PutString("prevVersion", build.Version)
 	}
 
-	m := model.NewModel(a.cfg, a.myID, "syncthing", build.Version, a.ll, protectedFiles, a.evLogger)
+	m := model.NewModel(a.cfg, a.myID, defaultModelName, build.Version, a.ll, protectedFiles, a.evLogger)
 
 	if a.opts.DeadlockTimeoutS > 0 {
 		m.StartDeadlockDetector(time.Duration(a.opts.DeadlockTimeoutS) * time.Second)
