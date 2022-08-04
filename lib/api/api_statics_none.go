@@ -14,3 +14,6 @@ func newStaticsServer(theme, assetDir string) *staticsServer {
 func (s *staticsServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }
+
+func (s *staticsServer) setTheme(theme string) {
+}
