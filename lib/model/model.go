@@ -1322,6 +1322,7 @@ func (m *model) ccHandleFolders(folders []protocol.Folder, deviceCfg config.Devi
 		l.Infof("Could not get pending folders for cleanup: %v", err)
 	}
 	of := db.ObservedFolder{Time: time.Now().Truncate(time.Second)}
+	const ignoreIncomingFolders = true
 	for _, folder := range folders {
 		seenFolders[folder.ID] = struct{}{}
 
@@ -1331,7 +1332,7 @@ func (m *model) ccHandleFolders(folders []protocol.Folder, deviceCfg config.Devi
 		}
 		if !ok {
 			indexSenders.remove(folder.ID)
-			if deviceCfg.IgnoredFolder(folder.ID) {
+			if ignoreIncomingFolders || deviceCfg.IgnoredFolder(folder.ID) {
 				l.Infof("Ignoring folder %s from device %s since we are configured to", folder.Description(), deviceID)
 				continue
 			}

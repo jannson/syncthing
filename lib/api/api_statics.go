@@ -1,3 +1,5 @@
+// +build msyncdebug
+
 // Copyright (C) 2014 The Syncthing Authors.
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
