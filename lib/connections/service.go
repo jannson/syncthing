@@ -253,7 +253,7 @@ func (s *service) handle(ctx context.Context) error {
 		// The Model will return an error for devices that we don't want to
 		// have a connection with for whatever reason, for example unknown devices.
 		if err := s.model.OnHello(remoteID, c.RemoteAddr(), hello); err != nil {
-			l.Infof("Connection from %s at %s (%s) rejected: %v", remoteID, c.RemoteAddr(), c.Type(), err)
+			l.Debugf("Connection from %s at %s (%s) rejected: %v", remoteID, c.RemoteAddr(), c.Type(), err)
 			c.Close()
 			continue
 		}
@@ -292,7 +292,7 @@ func (s *service) handle(ctx context.Context) error {
 
 		protoConn := protocol.NewConnection(remoteID, rd, wr, c, s.model, c, deviceCfg.Compression, s.cfg.FolderPasswords(remoteID))
 
-		l.Infof("Established secure connection to %s at %s", remoteID, c)
+		l.Debugf("Established secure connection to %s at %s", remoteID, c)
 
 		s.model.AddConnection(protoConn, hello)
 		continue

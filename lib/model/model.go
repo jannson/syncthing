@@ -1790,7 +1790,7 @@ func (m *model) Closed(device protocol.DeviceID, err error) {
 	m.progressEmitter.temporaryIndexUnsubscribe(conn)
 	m.deviceDidClose(device, time.Since(conn.EstablishedAt()))
 
-	l.Infof("Connection to %s at %s closed: %v", device, conn, err)
+	l.Debugf("Connection to %s at %s closed: %v", device, conn, err)
 	m.evLogger.Log(events.DeviceDisconnected, map[string]string{
 		"id":    device.String(),
 		"error": err.Error(),
@@ -2290,7 +2290,7 @@ func (m *model) AddConnection(conn protocol.Connection, hello protocol.Hello) {
 
 	m.evLogger.Log(events.DeviceConnected, event)
 
-	l.Infof(`Device %s client is "%s %s" named "%s" at %s`, deviceID, hello.ClientName, hello.ClientVersion, hello.DeviceName, conn)
+	l.Debugf(`Device %s client is "%s %s" named "%s" at %s`, deviceID, hello.ClientName, hello.ClientVersion, hello.DeviceName, conn)
 
 	conn.Start()
 	m.pmut.Unlock()
