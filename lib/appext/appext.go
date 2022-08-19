@@ -25,6 +25,7 @@ type Manager interface {
 	GetDeviceID(state *tls.ConnectionState) (protocol.DeviceID, error)
 	ServerConns(linkHost string) <-chan Conn
 	Dial(ctx context.Context, localAddr string, deviceId protocol.DeviceID, uri *url.URL) (net.Conn, error)
+	OnLocalFolderMissing(localId, remoteId protocol.DeviceID, remoteFolderId string)
 }
 
 type Conn interface {
@@ -62,6 +63,10 @@ func SetGuiHandler(localAddr string, guiHandle GuiHandler) {
 
 func GetGuiListener(network, localAddr string) (net.Listener, error) {
 	return appMgr.GetGuiListener(network, localAddr)
+}
+
+func OnLocalFolderMissing(localId, remoteId protocol.DeviceID, remoteFolderId string) {
+	appMgr.OnLocalFolderMissing(localId, remoteId, remoteFolderId)
 }
 
 func SetMgr(p Manager) {

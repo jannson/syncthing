@@ -27,6 +27,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/thejerf/suture/v4"
 
+	"github.com/syncthing/syncthing/lib/appext"
 	"github.com/syncthing/syncthing/lib/config"
 	"github.com/syncthing/syncthing/lib/connections"
 	"github.com/syncthing/syncthing/lib/db"
@@ -1332,7 +1333,12 @@ func (m *model) ccHandleFolders(folders []protocol.Folder, deviceCfg config.Devi
 		}
 		if !ok {
 			indexSenders.remove(folder.ID)
-			if ignoreIncomingFolders || deviceCfg.IgnoredFolder(folder.ID) {
+			if ignoreIncomingFolders {
+				// Send a message to current device which should sync configuration from server
+				appext.OnLocalFolderMissing(m.id, deviceID, folder.ID)
+				continue
+			}
+			if deviceCfg.IgnoredFolder(folder.ID) {
 				l.Infof("Ignoring folder %s from device %s since we are configured to", folder.Description(), deviceID)
 				continue
 			}

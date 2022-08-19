@@ -15,7 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/thejerf/suture/v4"
 
 	"github.com/syncthing/syncthing/lib/config"
@@ -183,8 +182,9 @@ func (c *folderSummaryService) listenForUpdates(ctx context.Context) error {
 			if ok {
 				c.processUpdate(ev)
 			} else {
-				l.Warnln("folder summary service closed")
-				return errors.New("closed")
+				l.Infoln("folder summary service closed, wait done")
+				<-ctx.Done()
+				return ctx.Err()
 			}
 		case <-ctx.Done():
 			return ctx.Err()
