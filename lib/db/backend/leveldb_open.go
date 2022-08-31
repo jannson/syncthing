@@ -154,7 +154,7 @@ func open(location string, opts *opt.Options) (*leveldb.DB, error) {
 		db, err = leveldb.OpenFile(location, opts)
 	}
 	if err != nil {
-		return nil, &errorSuggestion{err, "is another instance of Syncthing running?"}
+		return nil, err
 	}
 
 	if debugEnvValue("CompactEverything", 0) != 0 {
