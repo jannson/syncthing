@@ -44,6 +44,8 @@ import (
 	"github.com/syncthing/syncthing/lib/versioner"
 )
 
+const ignoreIncomingFolders = true
+
 type service interface {
 	suture.Service
 	BringToFront(string)
@@ -1323,7 +1325,6 @@ func (m *model) ccHandleFolders(folders []protocol.Folder, deviceCfg config.Devi
 		l.Infof("Could not get pending folders for cleanup: %v", err)
 	}
 	of := db.ObservedFolder{Time: time.Now().Truncate(time.Second)}
-	const ignoreIncomingFolders = true
 	for _, folder := range folders {
 		seenFolders[folder.ID] = struct{}{}
 
@@ -2188,6 +2189,9 @@ func (m *model) OnHello(remoteID protocol.DeviceID, addr net.Addr, hello protoco
 
 	cfg, ok := m.cfg.Device(remoteID)
 	if !ok {
+		if ignoreIncomingFolders {
+			return errDeviceUnknown
+		}
 		if err := m.db.AddOrUpdatePendingDevice(remoteID, hello.DeviceName, addr.String()); err != nil {
 			l.Warnf("Failed to persist pending device entry to database: %v", err)
 		}
