@@ -1762,9 +1762,13 @@ func browseFiles(current string, fsType fs.FilesystemType) []string {
 }
 
 func (s *service) getCPUProf(w http.ResponseWriter, r *http.Request) {
-	duration, err := time.ParseDuration(r.FormValue("duration"))
-	if err != nil {
-		duration = 30 * time.Second
+	duration := 30 * time.Second
+	ds := r.URL.Query().Get("duration")
+	if len(ds) > 0 {
+		durationNum, err := strconv.Atoi(ds)
+		if err == nil {
+			duration = time.Second * time.Duration(durationNum)
+		}
 	}
 
 	filename := fmt.Sprintf("syncthing-cpu-%s-%s-%s-%s.pprof", runtime.GOOS, runtime.GOARCH, build.Version, time.Now().Format("150405")) // hhmmss
