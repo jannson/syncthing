@@ -44,6 +44,7 @@ var (
 func SelectAlgo() {
 	switch os.Getenv("STHASHING") {
 	case "":
+	case "benchmark":
 		// When unset, probe for the fastest implementation.
 		benchmark()
 		if minioPerf > cryptoPerf {
