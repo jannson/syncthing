@@ -130,7 +130,7 @@ type sendReceiveFolder struct {
 
 func newSendReceiveFolder(model *model, fset *db.FileSet, ignores *ignore.Matcher, cfg config.FolderConfiguration, ver versioner.Versioner, evLogger events.Logger, ioLimiter *byteSemaphore) service {
 	f := &sendReceiveFolder{
-		folder:             newFolder(model, fset, ignores, cfg, evLogger, ioLimiter, ver),
+		folder:             newFolder(model, fset, ignores, cfg, evLogger, ioLimiter, ver, model.locDirs),
 		queue:              newJobQueue(),
 		blockPullReorderer: newBlockPullReorderer(cfg.BlockPullOrder, model.id, cfg.DeviceIDs()),
 		writeLimiter:       newByteSemaphore(cfg.MaxConcurrentWrites),

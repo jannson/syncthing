@@ -90,6 +90,7 @@ type service struct {
 	startupErr           error
 	listenerAddr         net.Addr
 	exitChan             chan *svcutil.FatalErr
+	locDirs              *locations.LocationDirs
 
 	guiErrors logger.Recorder
 	systemLog logger.Recorder
@@ -134,7 +135,19 @@ func (guiHandle *GuiHandler) GetWrapper() config.Wrapper {
 	return guiHandle.srv.cfg
 }
 
-func New(id protocol.DeviceID, cfg config.Wrapper, assetDir, tlsDefaultCommonName string, m model.Model, defaultSub, diskSub events.BufferedSubscription, evLogger events.Logger, discoverer discover.Manager, connectionsService connections.Service, urService *ur.Service, fss model.FolderSummaryService, errors, systemLog logger.Recorder, noUpgrade bool) Service {
+func New(id protocol.DeviceID,
+	cfg config.Wrapper,
+	assetDir, tlsDefaultCommonName string,
+	m model.Model,
+	defaultSub,
+	diskSub events.BufferedSubscription,
+	evLogger events.Logger,
+	discoverer discover.Manager,
+	connectionsService connections.Service,
+	urService *ur.Service,
+	fss model.FolderSummaryService,
+	errors, systemLog logger.Recorder, noUpgrade bool,
+	locDirs *locations.LocationDirs) Service {
 	return &service{
 		id:      id,
 		cfg:     cfg,
@@ -157,6 +170,7 @@ func New(id protocol.DeviceID, cfg config.Wrapper, assetDir, tlsDefaultCommonNam
 		configChanged:        make(chan struct{}),
 		startedOnce:          make(chan struct{}),
 		exitChan:             make(chan *svcutil.FatalErr, 1),
+		locDirs:              locDirs,
 	}
 }
 
@@ -173,8 +187,8 @@ func (s *service) getListener(guiCfg config.GUIConfiguration) (net.Listener, boo
 		return nil, true, err
 	}
 
-	httpsCertFile := locations.Get(locations.HTTPSCertFile)
-	httpsKeyFile := locations.Get(locations.HTTPSKeyFile)
+	httpsCertFile := s.locDirs.Get(locations.HTTPSCertFile)
+	httpsKeyFile := s.locDirs.Get(locations.HTTPSKeyFile)
 	cert, err := tls.LoadX509KeyPair(httpsCertFile, httpsKeyFile)
 
 	// If the certificate has expired or will expire in the next month, fail
@@ -385,7 +399,7 @@ func (s *service) Serve(ctx context.Context) error {
 
 	// Wrap everything in CSRF protection. The /rest prefix should be
 	// protected, other requests will grant cookies.
-	var handler http.Handler = newCsrfManager(s.id.String()[:5], "/rest", guiCfg, mux, locations.Get(locations.CsrfTokens))
+	var handler http.Handler = newCsrfManager(s.id.String()[:5], "/rest", guiCfg, mux, s.locDirs.Get(locations.CsrfTokens))
 
 	// Add our version and ID as a header to responses
 	handler = withDetailsMiddleware(s.id, handler)
@@ -1179,7 +1193,7 @@ func (s *service) getSupportBundle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Panic files
-	if panicFiles, err := filepath.Glob(filepath.Join(locations.GetBaseDir(locations.ConfigBaseDir), "panic*")); err == nil {
+	if panicFiles, err := filepath.Glob(filepath.Join(s.locDirs.GetBaseDir(locations.ConfigBaseDir), "panic*")); err == nil {
 		for _, f := range panicFiles {
 			if panicFile, err := ioutil.ReadFile(f); err != nil {
 				l.Warnf("Support bundle: failed to load %s: %s", filepath.Base(f), err)
@@ -1190,7 +1204,7 @@ func (s *service) getSupportBundle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Archived log (default on Windows)
-	if logFile, err := ioutil.ReadFile(locations.Get(locations.LogFile)); err == nil {
+	if logFile, err := ioutil.ReadFile(s.locDirs.Get(locations.LogFile)); err == nil {
 		files = append(files, fileEntry{name: "log-ondisk.txt", data: logFile})
 	}
 
@@ -1246,7 +1260,7 @@ func (s *service) getSupportBundle(w http.ResponseWriter, r *http.Request) {
 
 	// Set zip file name and path
 	zipFileName := fmt.Sprintf("support-bundle-%s-%s.zip", s.id.Short().String(), time.Now().Format("2006-01-02T150405"))
-	zipFilePath := filepath.Join(locations.GetBaseDir(locations.ConfigBaseDir), zipFileName)
+	zipFilePath := filepath.Join(s.locDirs.GetBaseDir(locations.ConfigBaseDir), zipFileName)
 
 	// Write buffer zip to local zip file (back up)
 	if err := ioutil.WriteFile(zipFilePath, zipFilesBuffer.Bytes(), 0600); err != nil {

@@ -34,6 +34,7 @@ import (
 	"github.com/syncthing/syncthing/lib/events"
 	"github.com/syncthing/syncthing/lib/fs"
 	"github.com/syncthing/syncthing/lib/ignore"
+	"github.com/syncthing/syncthing/lib/locations"
 	"github.com/syncthing/syncthing/lib/osutil"
 	"github.com/syncthing/syncthing/lib/protocol"
 	"github.com/syncthing/syncthing/lib/scanner"
@@ -126,6 +127,7 @@ type model struct {
 	db             *db.Lowlevel
 	protectedFiles []string
 	evLogger       events.Logger
+	locDirs        *locations.LocationDirs
 
 	// constant or concurrency safe fields
 	finder          *db.BlockFinder
@@ -206,7 +208,11 @@ var (
 // NewModel creates and starts a new model. The model starts in read-only mode,
 // where it sends index information to connected peers and responds to requests
 // for file data without altering the local folder in any way.
-func NewModel(cfg config.Wrapper, id protocol.DeviceID, clientName, clientVersion string, ldb *db.Lowlevel, protectedFiles []string, evLogger events.Logger) Model {
+func NewModel(cfg config.Wrapper,
+	id protocol.DeviceID, clientName, clientVersion string,
+	ldb *db.Lowlevel, protectedFiles []string,
+	evLogger events.Logger,
+	locDirs *locations.LocationDirs) Model {
 	spec := svcutil.SpecWithDebugLogger(l)
 	m := &model{
 		Supervisor: suture.New("model", spec),
@@ -219,6 +225,7 @@ func NewModel(cfg config.Wrapper, id protocol.DeviceID, clientName, clientVersio
 		db:             ldb,
 		protectedFiles: protectedFiles,
 		evLogger:       evLogger,
+		locDirs:        locDirs,
 
 		// constant or concurrency safe fields
 		finder:               db.NewBlockFinder(ldb),

@@ -25,7 +25,7 @@ type sendOnlyFolder struct {
 
 func newSendOnlyFolder(model *model, fset *db.FileSet, ignores *ignore.Matcher, cfg config.FolderConfiguration, _ versioner.Versioner, evLogger events.Logger, ioLimiter *byteSemaphore) service {
 	f := &sendOnlyFolder{
-		folder: newFolder(model, fset, ignores, cfg, evLogger, ioLimiter, nil),
+		folder: newFolder(model, fset, ignores, cfg, evLogger, ioLimiter, nil, model.locDirs),
 	}
 	f.folder.puller = f
 	return f

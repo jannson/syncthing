@@ -72,6 +72,7 @@ type App struct {
 	cfg               config.Wrapper
 	ll                *db.Lowlevel
 	evLogger          events.Logger
+	locDirs           *locations.LocationDirs
 	cert              tls.Certificate
 	opts              Options
 	exitStatus        svcutil.ExitStatus
@@ -81,7 +82,12 @@ type App struct {
 	stopped           chan struct{}
 }
 
-func New(cfg config.Wrapper, dbBackend backend.Backend, evLogger events.Logger, cert tls.Certificate, opts Options) (*App, error) {
+func New(cfg config.Wrapper,
+	dbBackend backend.Backend,
+	evLogger events.Logger,
+	cert tls.Certificate,
+	opts Options,
+	locDirs *locations.LocationDirs) (*App, error) {
 	ll, err := db.NewLowlevel(dbBackend, evLogger, db.WithRecheckInterval(opts.DBRecheckInterval), db.WithIndirectGCInterval(opts.DBIndirectGCInterval))
 	if err != nil {
 		return nil, err
@@ -90,6 +96,7 @@ func New(cfg config.Wrapper, dbBackend backend.Backend, evLogger events.Logger, 
 		cfg:      cfg,
 		ll:       ll,
 		evLogger: evLogger,
+		locDirs:  locDirs,
 		opts:     opts,
 		cert:     cert,
 		stopped:  make(chan struct{}),
@@ -162,7 +169,7 @@ func (a *App) startup() error {
 	// Emit the Starting event, now that we know who we are.
 
 	a.evLogger.Log(events.Starting, map[string]string{
-		"home": locations.GetBaseDir(locations.ConfigBaseDir),
+		"home": a.locDirs.GetBaseDir(locations.ConfigBaseDir),
 		"myID": a.myID.String(),
 	})
 
@@ -197,10 +204,10 @@ func (a *App) startup() error {
 	}
 
 	protectedFiles := []string{
-		locations.Get(locations.Database),
-		locations.Get(locations.ConfigFile),
-		locations.Get(locations.CertFile),
-		locations.Get(locations.KeyFile),
+		a.locDirs.Get(locations.Database),
+		a.locDirs.Get(locations.ConfigFile),
+		a.locDirs.Get(locations.CertFile),
+		a.locDirs.Get(locations.KeyFile),
 	}
 
 	// Remove database entries for folders that no longer exist in the config
@@ -244,7 +251,7 @@ func (a *App) startup() error {
 		miscDB.PutString("prevVersion", build.Version)
 	}
 
-	m := model.NewModel(a.cfg, a.myID, defaultModelName, build.Version, a.ll, protectedFiles, a.evLogger)
+	m := model.NewModel(a.cfg, a.myID, defaultModelName, build.Version, a.ll, protectedFiles, a.evLogger, a.locDirs)
 
 	if a.opts.DeadlockTimeoutS > 0 {
 		m.StartDeadlockDetector(time.Duration(a.opts.DeadlockTimeoutS) * time.Second)
@@ -423,7 +430,7 @@ func (a *App) setupGUI(m model.Model, defaultSub, diskSub events.BufferedSubscri
 	summaryService := model.NewFolderSummaryService(a.cfg, m, a.myID, a.evLogger)
 	a.mainService.Add(summaryService)
 
-	apiSvc := api.New(a.myID, a.cfg, a.opts.AssetDir, tlsDefaultCommonName, m, defaultSub, diskSub, a.evLogger, discoverer, connectionsService, urService, summaryService, errors, systemLog, a.opts.NoUpgrade)
+	apiSvc := api.New(a.myID, a.cfg, a.opts.AssetDir, tlsDefaultCommonName, m, defaultSub, diskSub, a.evLogger, discoverer, connectionsService, urService, summaryService, errors, systemLog, a.opts.NoUpgrade, a.locDirs)
 	a.mainService.Add(apiSvc)
 
 	if err := apiSvc.WaitForStart(); err != nil {

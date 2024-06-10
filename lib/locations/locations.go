@@ -17,6 +17,7 @@ import (
 	"github.com/syncthing/syncthing/lib/fs"
 )
 
+// LocationEnum Location enums
 type LocationEnum string
 
 // Use strings as keys to make printout and serialization of the locations map
@@ -37,6 +38,7 @@ const (
 	FailuresFile  LocationEnum = "FailuresFile"
 )
 
+// BaseDirEnum base dir enum
 type BaseDirEnum string
 
 const (
@@ -49,45 +51,46 @@ const (
 	LevelDBDir = "index-v0.14.0.db"
 )
 
-// Platform dependent directories
-var baseDirs = make(map[BaseDirEnum]string, 3)
+type LocationDirs struct {
+	loc  map[LocationEnum]string
+	base map[BaseDirEnum]string
+}
 
-func init() {
+func CreateDefaultLocations() (*LocationDirs, error) {
 	userHome := userHomeDir()
 	config := defaultConfigDir(userHome)
-	baseDirs[UserHomeBaseDir] = userHome
-	baseDirs[ConfigBaseDir] = config
-	baseDirs[DataBaseDir] = defaultDataDir(userHome, config)
-
-	err := expandLocations()
-	if err != nil {
-		fmt.Println(err)
-		panic("Failed to expand locations at init time")
-	}
+	data := defaultDataDir(userHome, config)
+	return CreateLocations(userHome, config, data)
 }
 
-func SetBaseDir(baseDirName BaseDirEnum, path string) error {
-	if !filepath.IsAbs(path) {
-		var err error
-		path, err = filepath.Abs(path)
-		if err != nil {
-			return err
+func CreateLocations(homePath, configPath, dataPath string) (*LocationDirs, error) {
+	var err error
+	paths := []string{homePath, configPath, dataPath}
+	for idx, p := range paths {
+		if !filepath.IsAbs(p) {
+			paths[idx], err = filepath.Abs(p)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
-	_, ok := baseDirs[baseDirName]
-	if !ok {
-		return fmt.Errorf("unknown base dir: %s", baseDirName)
+	locDirs := &LocationDirs{
+		loc:  make(map[LocationEnum]string, 16),
+		base: make(map[BaseDirEnum]string, 3),
 	}
-	baseDirs[baseDirName] = filepath.Clean(path)
-	return expandLocations()
+	locDirs.base[UserHomeBaseDir] = paths[0]
+	locDirs.base[ConfigBaseDir] = paths[1]
+	locDirs.base[DataBaseDir] = paths[2]
+	err = locDirs.expandLocations()
+	return locDirs, err
 }
 
-func Get(location LocationEnum) string {
-	return locations[location]
+func (locDirs *LocationDirs) Get(location LocationEnum) string {
+	return locDirs.loc[location]
 }
 
-func GetBaseDir(baseDir BaseDirEnum) string {
-	return baseDirs[baseDir]
+func (locDirs *LocationDirs) GetBaseDir(baseDir BaseDirEnum) string {
+	return locDirs.base[baseDir]
 }
 
 // Use the variables from baseDirs here
@@ -107,14 +110,11 @@ var locationTemplates = map[LocationEnum]string{
 	FailuresFile:  "${data}/failures-unreported.txt",
 }
 
-var locations = make(map[LocationEnum]string)
-
 // expandLocations replaces the variables in the locations map with actual
 // directory locations.
-func expandLocations() error {
-	newLocations := make(map[LocationEnum]string)
+func (locDirs *LocationDirs) expandLocations() error {
 	for key, dir := range locationTemplates {
-		for varName, value := range baseDirs {
+		for varName, value := range locDirs.base {
 			dir = strings.ReplaceAll(dir, "${"+string(varName)+"}", value)
 		}
 		var err error
@@ -122,10 +122,20 @@ func expandLocations() error {
 		if err != nil {
 			return err
 		}
-		newLocations[key] = filepath.Clean(dir)
+		locDirs.loc[key] = filepath.Clean(dir)
 	}
-	locations = newLocations
 	return nil
+}
+
+func (locDirs *LocationDirs) GetTimestamped(key LocationEnum) string {
+	// We take the roundtrip via "${timestamp}" instead of passing the path
+	// directly through time.Format() to avoid issues when the path we are
+	// expanding contains numbers; otherwise for example
+	// /home/user2006/.../panic-20060102-150405.log would get both instances of
+	// 2006 replaced by 2015...
+	tpl := locDirs.loc[key]
+	now := time.Now().Format("20060102-150405")
+	return strings.ReplaceAll(tpl, "${timestamp}", now)
 }
 
 // defaultConfigDir returns the default configuration directory, as figured
@@ -159,6 +169,10 @@ func defaultDataDir(userHome, config string) string {
 
 	default:
 		// If a database exists at the "normal" location, use that anyway.
+		// We look for both LevelDB and Badger variants here regardless of
+		// what we're currently configured to use, because we might be
+		// starting up in Badger mode with only a LevelDB database present
+		// (will be converted), or vice versa.
 		if _, err := os.Lstat(filepath.Join(config, LevelDBDir)); err == nil {
 			return config
 		}
@@ -187,15 +201,4 @@ func userHomeDir() string {
 		panic("Failed to get user home dir")
 	}
 	return userHome
-}
-
-func GetTimestamped(key LocationEnum) string {
-	// We take the roundtrip via "${timestamp}" instead of passing the path
-	// directly through time.Format() to avoid issues when the path we are
-	// expanding contains numbers; otherwise for example
-	// /home/user2006/.../panic-20060102-150405.log would get both instances of
-	// 2006 replaced by 2015...
-	tpl := locations[key]
-	now := time.Now().Format("20060102-150405")
-	return strings.ReplaceAll(tpl, "${timestamp}", now)
 }

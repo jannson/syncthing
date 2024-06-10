@@ -24,16 +24,16 @@ import (
 	"github.com/syncthing/syncthing/lib/tlsutil"
 )
 
-func LoadOrGenerateCertificate(certFile, keyFile string) (tls.Certificate, error) {
+func LoadOrGenerateCertificate(locDirs *locations.LocationDirs) (tls.Certificate, error) {
 	cert, err := tls.LoadX509KeyPair(
-		locations.Get(locations.CertFile),
-		locations.Get(locations.KeyFile),
+		locDirs.Get(locations.CertFile),
+		locDirs.Get(locations.KeyFile),
 	)
 	if err != nil {
 		l.Infof("Generating ECDSA key and certificate for %s...", tlsDefaultCommonName)
 		return tlsutil.NewCertificate(
-			locations.Get(locations.CertFile),
-			locations.Get(locations.KeyFile),
+			locDirs.Get(locations.CertFile),
+			locDirs.Get(locations.KeyFile),
 			tlsDefaultCommonName,
 			deviceCertLifetimeDays,
 		)
@@ -41,7 +41,7 @@ func LoadOrGenerateCertificate(certFile, keyFile string) (tls.Certificate, error
 	return cert, nil
 }
 
-func DefaultConfig(path string, myID protocol.DeviceID, evLogger events.Logger, noDefaultFolder bool) (config.Wrapper, error) {
+func DefaultConfig(path string, myID protocol.DeviceID, evLogger events.Logger, noDefaultFolder bool, locDirs *locations.LocationDirs) (config.Wrapper, error) {
 	newCfg, err := config.NewWithFreePorts(myID)
 	if err != nil {
 		return nil, err
@@ -56,7 +56,7 @@ func DefaultConfig(path string, myID protocol.DeviceID, evLogger events.Logger, 
 	fcfg.ID = "default"
 	fcfg.Label = "Default Folder"
 	fcfg.FilesystemType = fs.FilesystemTypeBasic
-	fcfg.Path = locations.Get(locations.DefFolder)
+	fcfg.Path = locDirs.Get(locations.DefFolder)
 	newCfg.Folders = append(newCfg.Folders, fcfg)
 	l.Infoln("Default folder created and/or linked to new config")
 	return config.Wrap(path, newCfg, myID, evLogger), nil
@@ -66,11 +66,16 @@ func DefaultConfig(path string, myID protocol.DeviceID, evLogger events.Logger, 
 // creates a default one, without the default folder if noDefaultFolder is ture.
 // Otherwise it checks the version, and archives and upgrades the config if
 // necessary or returns an error, if the version isn't compatible.
-func LoadConfigAtStartup(path string, cert tls.Certificate, evLogger events.Logger, allowNewerConfig, noDefaultFolder bool) (config.Wrapper, error) {
+func LoadConfigAtStartup(path string,
+	cert tls.Certificate,
+	evLogger events.Logger,
+	allowNewerConfig,
+	noDefaultFolder bool,
+	locDirs *locations.LocationDirs) (config.Wrapper, error) {
 	myID := protocol.NewDeviceID(cert.Certificate[0])
 	cfg, originalVersion, err := config.Load(path, myID, evLogger)
 	if fs.IsNotExist(err) {
-		cfg, err = DefaultConfig(path, myID, evLogger, noDefaultFolder)
+		cfg, err = DefaultConfig(path, myID, evLogger, noDefaultFolder, locDirs)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to generate default config")
 		}

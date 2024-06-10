@@ -39,6 +39,7 @@ type folder struct {
 	config.FolderConfiguration
 	*stats.FolderStatisticsReference
 	ioLimiter *byteSemaphore
+	locDirs   *locations.LocationDirs
 
 	localFlags uint32
 
@@ -91,12 +92,20 @@ type puller interface {
 	pull() (bool, error) // true when successful and should not be retried
 }
 
-func newFolder(model *model, fset *db.FileSet, ignores *ignore.Matcher, cfg config.FolderConfiguration, evLogger events.Logger, ioLimiter *byteSemaphore, ver versioner.Versioner) folder {
+func newFolder(model *model,
+	fset *db.FileSet,
+	ignores *ignore.Matcher,
+	cfg config.FolderConfiguration,
+	evLogger events.Logger,
+	ioLimiter *byteSemaphore,
+	ver versioner.Versioner,
+	locDirs *locations.LocationDirs) folder {
 	f := folder{
 		stateTracker:              newStateTracker(cfg.ID, evLogger),
 		FolderConfiguration:       cfg,
 		FolderStatisticsReference: stats.NewFolderStatisticsReference(model.db, cfg.ID),
 		ioLimiter:                 ioLimiter,
+		locDirs:                   locDirs,
 
 		model:         model,
 		shortID:       model.shortID,
@@ -312,7 +321,7 @@ func (f *folder) getHealthErrorWithoutIgnores() error {
 		return err
 	}
 
-	dbPath := locations.Get(locations.Database)
+	dbPath := f.locDirs.Get(locations.Database)
 	if usage, err := fs.NewFilesystem(fs.FilesystemTypeBasic, dbPath).Usage("."); err == nil {
 		if err = config.CheckFreeSpace(f.model.cfg.Options().MinHomeDiskFree, usage); err != nil {
 			return errors.Wrapf(err, "insufficient space on disk for database (%v)", dbPath)
